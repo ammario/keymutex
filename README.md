@@ -16,14 +16,14 @@ drawbacks:
 If you're interested in a sharded mutex, check out [neverlee/keymutex](https://github.com/neverlee/keymutex).
 
 
-## Usage
-
+Install:
 ```
 go get github.com/ammario/keymutex@latest
 ```
 
+Use:
 ```go
-var km keymutex.Mutex
+var km keymutex.Map[string]
 
 km.Lock("foo")
 defer km.Unlock("foo")
@@ -50,6 +50,7 @@ func BenchmarkMap_LockUnlock(b *testing.B) {
 }
 ```
 
+Gives:
 ````
 goos: darwin
 goarch: amd64
