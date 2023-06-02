@@ -10,10 +10,13 @@ func TestMmap(t *testing.T) {
 
 	// Zero value should be usable.
 	m.Lock("foo")
-	go func() {
-		m.Lock("foo")
+
+	m.Go("blah", func() {
+		m.Lock("blah")
 		panic("should not be reached")
-	}()
+	})
+
+	m.Unlock("foo")
 
 	time.Sleep(time.Millisecond * 100)
 
@@ -23,8 +26,8 @@ func TestMmap(t *testing.T) {
 	m.Lock("bar")
 	m.Unlock("bar")
 
-	if len(m.m) != 1 {
-		t.Fatal("expected 1 mutex")
+	if l := m.Len(); l != 1 {
+		t.Fatal("expected 1 mutex, got", l)
 	}
 }
 

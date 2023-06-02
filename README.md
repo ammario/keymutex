@@ -16,19 +16,30 @@ drawbacks:
 If you're interested in a sharded mutex, check out [neverlee/keymutex](https://github.com/neverlee/keymutex).
 
 
-Install:
+### Install
 ```
-go get github.com/ammario/keymutex@latest
+go get github.com/ammario/keymutex@main
 ```
 
-Use:
+### Usage
+
+The basics:
 ```go
 var km keymutex.Map[string]
 
 km.Lock("foo")
-defer km.Unlock("foo")
+go func(){
+	defer km.Unlock("foo")
+	// do something
+}()
 ```
 
+More ergonomic:
+```go
+km.Go("foo", func(){
+	// do something
+})
+```
 
 ## Performance
 
