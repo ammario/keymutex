@@ -1,11 +1,12 @@
 package keymutex
 
 import (
+	"sync"
 	"testing"
 	"time"
 )
 
-func TestMmap(t *testing.T) {
+func TestMap(t *testing.T) {
 	var m Map[string]
 
 	// Zero value should be usable.
@@ -29,6 +30,16 @@ func TestMmap(t *testing.T) {
 	if l := m.Len(); l != 1 {
 		t.Fatal("expected 1 mutex, got", l)
 	}
+
+	var wg sync.WaitGroup
+	for i := 0; i < 10; i++ {
+		wg.Add(1)
+		m.Go("race", func() {
+			defer wg.Done()
+			time.Sleep(time.Millisecond * 100)
+		})
+	}
+	wg.Wait()
 }
 
 func BenchmarkMap_LockUnlock(b *testing.B) {

@@ -1,30 +1,41 @@
 package keymutex
 
-import "sync"
+import (
+	"sync"
+)
 
 // Map is a map of mutual exclusion locks. The zero value is safe to use.
 type Map[K comparable] struct {
 	master sync.Mutex
+	cond   *sync.Cond
 	m      map[K]*sync.Mutex
 }
 
-func (m *Map[K]) init() {
+func (m *Map[K]) initLock(key K) *sync.Mutex {
+	if m.cond == nil {
+		m.cond = sync.NewCond(&m.master)
+	}
 	if m.m == nil {
 		m.m = make(map[K]*sync.Mutex)
 	}
-}
-
-func (m *Map[K]) Lock(key K) {
-	m.master.Lock()
-	m.init()
 	lock, ok := m.m[key]
 	if !ok {
 		lock = &sync.Mutex{}
 		m.m[key] = lock
 	}
-	m.master.Unlock()
+	return lock
+}
 
-	lock.Lock()
+func (m *Map[K]) Lock(key K) {
+	m.master.Lock()
+	defer m.master.Unlock()
+	for {
+		keyLock := m.initLock(key)
+		if keyLock.TryLock() {
+			return
+		}
+		m.cond.Wait()
+	}
 }
 
 func (m *Map[K]) Unlock(key K) {
@@ -45,6 +56,8 @@ func (m *Map[K]) Unlock(key K) {
 	// While this may create redundant allocation, it prevents
 	// runaway memory growth.
 	delete(m.m, key)
+
+	m.cond.Broadcast()
 }
 
 // Go is a convenience method that guards the given function with a mutex.
