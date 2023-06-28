@@ -62,6 +62,18 @@ func (m *Map[K]) LockCtx(ctx context.Context, key K) bool {
 	return m.lockLoop(key, &c)
 }
 
+// TryLock attempts to lock the mutex for the given key, returning true
+// if the mutex was successfully locked.
+//
+// It returns immediately.
+func (m *Map[K]) TryLock(key K) bool {
+	m.master.Lock()
+	defer m.master.Unlock()
+
+	keyLock := m.initLock(key)
+	return keyLock.TryLock()
+}
+
 func (m *Map[K]) Lock(key K) {
 	m.master.Lock()
 	defer m.master.Unlock()

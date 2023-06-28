@@ -33,6 +33,9 @@ func TestMap_LockCtx(t *testing.T) {
 
 	m.Lock("foo")
 
+	ok = m.TryLock("foo")
+	require.False(t, ok)
+
 	// Should fail in a second.
 
 	ctx, cancel = context.WithTimeout(ctx, time.Second)
