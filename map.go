@@ -61,12 +61,21 @@ func (m *Map[K]) Unlock(key K) {
 }
 
 // Go is a convenience method that guards the given function with a mutex.
-func (m *Map[K]) Go(key K, f func()) {
+// It locks synchronously, but runs fn in a separate goroutine.
+func (m *Map[K]) Go(key K, fn func()) {
 	m.Lock(key)
 	go func() {
 		defer m.Unlock(key)
-		f()
+		fn()
 	}()
+}
+
+// Do is a convenience method that guards the given function with a mutex.
+// It is similar to Go, but runs fn synchronously.
+func (m *Map[K]) Do(key K, fn func()) {
+	m.Lock(key)
+	defer m.Unlock(key)
+	fn()
 }
 
 // Len returns the number of mutexes currently in the map. The number

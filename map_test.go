@@ -24,6 +24,8 @@ func TestMap(t *testing.T) {
 	m.Lock("bar")
 	m.Unlock("bar")
 
+	m.Do("bar", func() {})
+
 	m.Lock("bar")
 	m.Unlock("bar")
 
