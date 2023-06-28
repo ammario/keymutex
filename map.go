@@ -1,7 +1,9 @@
 package keymutex
 
 import (
+	"context"
 	"sync"
+	"sync/atomic"
 )
 
 // Map is a map of mutual exclusion locks. The zero value is safe to use.
@@ -26,16 +28,44 @@ func (m *Map[K]) initLock(key K) *sync.Mutex {
 	return lock
 }
 
-func (m *Map[K]) Lock(key K) {
-	m.master.Lock()
-	defer m.master.Unlock()
+// lockLoop assumes that the master lock is already held.
+func (m *Map[K]) lockLoop(key K, cancel *int64) bool {
 	for {
 		keyLock := m.initLock(key)
 		if keyLock.TryLock() {
-			return
+			return true
+		} else if cancel != nil && atomic.LoadInt64(cancel) == 1 {
+			return false
 		}
 		m.cond.Wait()
 	}
+}
+
+// LockCtx locks the mutex for the given key, returning true if the lock
+// was acquired before the context is canceled.
+func (m *Map[K]) LockCtx(ctx context.Context, key K) bool {
+	m.master.Lock()
+	defer m.master.Unlock()
+
+	// We must create a child context here in-case the parent never closes,
+	// which would cause a leak.
+	ctx, cancelFn := context.WithCancel(ctx)
+	defer cancelFn()
+
+	var c int64
+	go func() {
+		<-ctx.Done()
+		atomic.StoreInt64(&c, 1)
+		m.cond.Broadcast()
+	}()
+
+	return m.lockLoop(key, &c)
+}
+
+func (m *Map[K]) Lock(key K) {
+	m.master.Lock()
+	defer m.master.Unlock()
+	m.lockLoop(key, nil)
 }
 
 func (m *Map[K]) Unlock(key K) {

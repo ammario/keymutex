@@ -11,6 +11,9 @@ drawbacks:
 * its memory usage scales linearly with the number of in-progress locks
 * every mutex operation is amplified 3x (map mutex lock and unlock)
 * it does not limit concurrency
+* it makes heavy use of sync.Cond Broadcast, which leads to an O(n) Unlock performance
+  where n is the number of waiters. The constant factor is small, and
+  the library may be modified to support O(1) performance without breaking the API.
 
 
 If you're interested in a sharded mutex, check out [neverlee/keymutex](https://github.com/neverlee/keymutex).

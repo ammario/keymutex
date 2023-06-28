@@ -1,21 +1,56 @@
 package keymutex
 
 import (
+	"context"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 )
 
-func TestMap(t *testing.T) {
+func TestMap_Leak(t *testing.T) {
 	var m Map[string]
-
-	// Zero value should be usable.
-	m.Lock("foo")
 
 	m.Go("blah", func() {
 		m.Lock("blah")
-		panic("should not be reached")
+		panic("should never be reached")
 	})
+}
+
+func TestMap_LockCtx(t *testing.T) {
+	t.Parallel()
+
+	var m Map[string]
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	ok := m.LockCtx(ctx, "foo")
+	require.True(t, ok)
+
+	m.Unlock("foo")
+
+	m.Lock("foo")
+
+	// Should fail in a second.
+
+	ctx, cancel = context.WithTimeout(ctx, time.Second)
+	defer cancel()
+
+	startWaiting := time.Now()
+	ok = m.LockCtx(ctx, "foo")
+	require.False(t, ok)
+
+	require.WithinDuration(t, startWaiting.Add(time.Second), time.Now(), time.Millisecond*50)
+}
+
+func TestMap(t *testing.T) {
+	t.Parallel()
+
+	var m Map[string]
+	// Zero value should be usable.
+	m.Lock("foo")
 
 	m.Unlock("foo")
 
@@ -29,8 +64,8 @@ func TestMap(t *testing.T) {
 	m.Lock("bar")
 	m.Unlock("bar")
 
-	if l := m.Len(); l != 1 {
-		t.Fatal("expected 1 mutex, got", l)
+	if l := m.Len(); l != 0 {
+		t.Fatal("expected 0 mutex, got", l)
 	}
 
 	var wg sync.WaitGroup
